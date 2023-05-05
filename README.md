@@ -50,6 +50,10 @@ If you have any suggestions, bug reports, or feature requests, feel free to open
 ## License
 
 This project is open-source and available under the MIT License.
-```
+
+
+## Notes
 
 Please let me know if you need any adjustments or further information added to the README.
+
+It's not the cleanest code. You can no doubt guess why.
