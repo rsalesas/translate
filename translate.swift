@@ -11,8 +11,12 @@ func requestChatGPT(prompt: String, apiKey: String, completion: @escaping (Resul
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
   
     let requestBody: [String: Any] = [
+        "temperature": 0.7,
         "prompt": prompt,
         "max_tokens": 1000,
+        "top_p": 1,
+        "frequency_penalty": 0,
+        "presence_penalty": 0,
         "n": 1,
         "stop": ["\"\"\""]
     ]
@@ -78,7 +82,19 @@ guard let inputFileContents = try? String(contentsOfFile: inputFilePath, encodin
 let semaphore = DispatchSemaphore(value: 0)
 
 // Send the entire input file to the ChatGPT API for translation
-let prompt = "Translate the following English text to \(languageCode) ISO language code:\n\"\"\"\(inputFileContents)\"\"\""
+let prompt =
+"""
+Translate the following English text to the language of \"\(languageCode)\" ISO language code. Replace the English word after the = with it's translated equivalent in quotes. Preserve the rest of the formatting intact, including the text before the = and the terminating semi-colon. For example:
+
+"English1" = "Spanish";
+"English2" = "Spanish2";
+
+Translate the following:
+\n\(inputFileContents)
+
+
+"""
+
 requestChatGPT(prompt: prompt, apiKey: apiKey) { result in
     switch result {
     case .success(let translatedText):
