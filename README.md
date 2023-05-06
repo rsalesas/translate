@@ -22,7 +22,7 @@ This tool is useful for developers looking to quickly generate localized version
 3. Execute the script by providing the required arguments:
 
 ```bash
-./translate.swift <api_key> <language_code> <input_file> <output_file>
+translate.swift <api_key> <language_code> <input_file> <output_file>
 ```
 
 - `<api_key>`: Your OpenAI API key for accessing ChatGPT
@@ -33,7 +33,7 @@ This tool is useful for developers looking to quickly generate localized version
 Example:
 
 ```bash
-./translate.swift abcd1234xyz es Localizable.strings Localizable_es.strings
+translate.swift abcd1234xyz es Localizable.strings Localizable_es.strings
 ```
 
 This command will translate the contents of `Localizable.strings` to Spanish and save the translated strings in `Localizable_es.strings`.
