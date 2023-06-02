@@ -66,7 +66,28 @@ func requestChatGPT(prompt: String, apiKey: String, completion: @escaping (Resul
     }.resume()
 }
 
-// Read command-line arguments
+func translateLine(line: String, languageCode: String, apiKey: String, completion: @escaping (Result<String, Error>) -> Void) {
+    let prompt =
+    """
+    Translate the following English text to the language of \"\(languageCode)\" ISO language code. Replace the English word after the = with it's translated equivalent in quotes. Preserve the rest of the formatting intact, including the text before the = and the terminating semi-colon. For example:
+
+    "English1" = "Spanish1";
+    "English2" = "Spanish2";
+
+    Translate the following:
+    \(line.stripExtraWhitespaces())
+
+
+    """
+
+    requestChatGPT(prompt: prompt, apiKey: apiKey, completion: completion)
+}
+
+func readLinesFromFile(filePath: String) throws -> [String] {
+    let content = try String(contentsOfFile: filePath, encoding: .utf8)
+    return content.components(separatedBy: .newlines).filter { !$0.isEmpty }
+}
+
 guard CommandLine.argc == 5 else {
     print("Usage: ./translate.swift <api_key> <language_code> <input_file> <output_file>")
     exit(1)
@@ -77,46 +98,43 @@ let languageCode = CommandLine.arguments[2]
 let inputFilePath = CommandLine.arguments[3]
 let outputFilePath = CommandLine.arguments[4]
 
-// Read the contents of the input file
-guard let inputFileContents = try? String(contentsOfFile: inputFilePath, encoding: .utf8) else {
+let semaphore = DispatchSemaphore(value: 0)
+
+do {
+    let lines = try readLinesFromFile(filePath: inputFilePath)
+    var translatedLines: [String] = []
+
+    let group = DispatchGroup()
+
+    for line in lines {
+        group.enter()
+        translateLine(line: line, languageCode: languageCode, apiKey: apiKey) { result in
+            switch result {
+            case .success(let translatedLine):
+                translatedLines.append(translatedLine)
+            case .failure(let error):
+                print("Error translating line: \(line). Error: \(error)")
+            }
+            group.leave()
+        }
+    }
+
+    group.notify(queue: .main) {
+        let translatedText = translatedLines.joined(separator: "\n")
+        do {
+            try translatedText.write(toFile: outputFilePath, atomically: true, encoding: .utf8)
+            print("Translation complete. Output saved to \(outputFilePath).")
+            semaphore.signal()
+        } catch {
+            print("Error writing to output file: \(error)")
+            semaphore.signal()
+        }
+    }
+
+} catch {
     print("Error: Unable to read input file.")
     exit(1)
 }
 
-// Create a semaphore to hold the main loop
-let semaphore = DispatchSemaphore(value: 0)
-
-// Send the entire input file to the ChatGPT API for translation
-let prompt =
-"""
-Translate the following English text to the language of \"\(languageCode)\" ISO language code. Replace the English word after the = with it's translated equivalent in quotes. Preserve the rest of the formatting intact, including the text before the = and the terminating semi-colon. For example:
-
-"English1" = "Spanish1";
-"English2" = "Spanish2";
-
-Translate the following:
-\n\(inputFileContents)
-
-
-"""
-
-requestChatGPT(prompt: prompt, apiKey: apiKey) { result in
-    switch result {
-    case .success(let translatedText):
-        // Write the translated contents to the output file
-        do {
-            try translatedText.write(toFile: outputFilePath, atomically: true, encoding: .utf8)
-            print("Translation complete. Output saved to \(outputFilePath).")
-        } catch {
-            print("Error: Unable to write to output file.")
-            exit(1)
-        }
-    case .failure(let error):
-        print("Error: Unable to translate input file. \(error.localizedDescription)")
-        exit(1)
-    }
-  
-    semaphore.signal()
-}
-
 semaphore.wait()
+
